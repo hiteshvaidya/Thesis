@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import tensorflow as tf
+from collections import OrderedDict
 import Dataloader
 from metadata import config
 import VAE
@@ -71,10 +72,10 @@ def calc_metrics(choice):
         for batch in batches:
             size += batch.shape[0]
             if choice == 'train':
-                output = ffn.forward(trainX[batch])
+                z3, output = ffn.forward(trainX[batch])
                 loss += ffn.loss(trainY[t, batch], output) * batch.shape[0]
             elif choice == 'valid':
-                output = ffn.forward(validX[batch])
+                z3, output = ffn.forward(validX[batch])
                 loss += ffn.loss(validY[t, batch], output) * batch.shape[0]
             else:
                 output = None
@@ -100,6 +101,11 @@ calc_metrics('valid')
 
 # Training phase
 
+# Collection of decoders
+decoders = OrderedDict()
+# Priors of hidden vectors of penultimate of FFN
+priors = OrderedDict()
+
 tqdm.write('Running Tasks')
 for task in tqdm(range(config.n_tasks)):
 
@@ -109,11 +115,32 @@ for task in tqdm(range(config.n_tasks)):
                                           class_bal=True)
         for batch in batches:
             vae.backward(trainX[batch])
+    decoders[task] = vae.get_decoder()
+
+    X_recon = []
+    for t in range(task):
+        X_t = vae.generate_images(priors[t], decoders[t])
+        X_recon.extend(X_t[:config.BATCH_SIZE//task])
 
     for epoch in range(config.EPOCHS):
         # preds = net.forward(trainX[batch])
         # batch_loss = net.loss(trainY[task, batch], preds)
-        ffn.backward(trainX[batch], trainY[task, batch])
+        batches = Dataloader.batch_loader(trainY[task], config.BATCH_SIZE,
+                                          class_bal=True)
+        for batch in batches:
+            ffn.backward(trainX[batch], trainY[task, batch])
 
-        calc_metrics('train')
-        calc_metrics('valid')
+    # Train on previous tasks
+    if len(X_recon) > 0:
+        X_recon = tf.convert_to_tensor(X_recon)
+        print('shape of X_recon for tasks before {}: {}'.format(task,
+                                                                X_recon.shape))
+        for epoch in range(1):
+            y_pred = tf.ones([X_recon.shape[0], 1])
+            batches = Dataloader.batch_loader(y_pred, X_recon.shape[0])
+
+            for batch in batches:
+                ffn.backward(X_recon[batch], y_pred[batch])
+
+    calc_metrics('train')
+    calc_metrics('valid')

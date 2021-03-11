@@ -20,7 +20,7 @@ class FFN_network(object):
     Code for feed forward network
     '''
 
-    def __init__(self, n_x, n_z1, n_z2, n_y):
+    def __init__(self, n_x, n_z1, n_z2, n_z3, n_y):
         '''
         constructor of the network
         :param n_x:     number of nodes in input layer
@@ -33,10 +33,15 @@ class FFN_network(object):
         self.b1 = utils.weight_variable([n_z1], 'b1')
         self.W2 = utils.weight_variable([n_z1, n_z2], 'W2')
         self.b2 = utils.weight_variable([n_z2], 'b2')
-        self.W3 = utils.weight_variable([n_z2, n_y], 'W3')
-        self.b3 = utils.weight_variable([n_y], 'b3')
+        self.W3 = utils.weight_variable([n_z2, n_z3], 'W3')
+        self.b3 = utils.weight_variable([n_z3], 'b3')
+        self.W4 = utils.weight_variable([n_z3, n_y], 'W3')
+        self.b4 = utils.weight_variable([n_y], 'b3')
 
-        self.params = [self.W1, self.b1, self.W2, self.b2, self.W3, self.b3]
+        self.params = [self.W1, self.b1, self.W2, self.b2, self.W3, self.b3,
+                       self.W4, self.b4]
+
+        self.centroid = []
 
         self.optim = tf.compat.v1.train.GradientDescentOptimizer(
             learning_rate=0.01)
@@ -52,12 +57,15 @@ class FFN_network(object):
         z2 = tf.matmul(z1, self.W2) + self.b2
         z2 = tf.nn.tanh(z2)
         z3 = tf.matmul(z2, self.W3) + self.b3
-        z3 = tf.nn.sigmoid(z3)
-        return z3
+        z3 = tf.nn.tanh(z3)
+        Y = tf.matmul(z3, self.W4) + self.b4
+        Y = tf.nn.sigmoid(Y)
+        return z3, Y
 
     def loss(self, y_true, y_pred, choice='log'):
         '''
         Calculates the loss between true and predicted output
+        :param choice: choice of loss function
         :param y_true: true label
         :param y_pred: predicted output
         :return: loss between y_true and y_pred
@@ -70,6 +78,8 @@ class FFN_network(object):
                 tf.compat.v1.losses.log_loss(y_true, y_pred))
         elif choice == 'mse':
             return custom_MSE(y_true, y_pred)
+        else:
+            pass
 
     def backward(self, x, y_true):
         '''
@@ -77,11 +87,14 @@ class FFN_network(object):
         :return: None
         '''
         with tf.GradientTape() as tape:
-            y_pred = self.forward(x)
+            z3, y_pred = self.forward(x)
             loss = self.loss(y_true, y_pred, 'log')
         grads = tape.gradient(loss, self.params)
         self.optim.apply_gradients(zip(grads, self.params),
                                    global_step=tf.compat.v1.train.get_or_create_global_step())
+        # mean = tf.reduce_mean(z3, axis=0)
+        # std = tf.math.reduce_std(z3, axis=0)
+        return z3
 
 def custom_MSE(y_true, y_pred, offset=1e-7):
     '''
