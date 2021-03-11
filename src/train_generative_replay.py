@@ -12,6 +12,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import tensorflow as tf
+import datetime
+import pickle as pkl
 from collections import OrderedDict
 import Dataloader
 from metadata import config
@@ -36,7 +38,7 @@ test_accuracy = {}
 # optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.01)
 optimizer = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.01)
 vae = VAE.VAE_network(config.input_size, 20, 312)
-ffn = FFN.FFN_network(config.input_size, 312, 128, 1)
+ffn = FFN.FFN_network(config.input_size, 312, 128, 20, 1)
 
 # metrics for each task
 for t in range(config.n_tasks):
@@ -55,6 +57,7 @@ def calc_metrics(choice):
     :param choice: 'train' or 'valid' split
     :return:        None
     """
+
     for t in range(config.n_tasks):
         loss = 0
         acc = 0
@@ -69,7 +72,7 @@ def calc_metrics(choice):
         else:
             batches = None
 
-        for batch in batches:
+        for batch in (batches):
             size += batch.shape[0]
             if choice == 'train':
                 z3, output = ffn.forward(trainX[batch])
@@ -106,23 +109,27 @@ decoders = OrderedDict()
 # Priors of hidden vectors of penultimate of FFN
 priors = OrderedDict()
 
+start = datetime.datetime.now()
 tqdm.write('Running Tasks')
 for task in tqdm(range(config.n_tasks)):
-
+    print('\nTraining for task:', task,'-----------------------------')
     # Train VAE first n epochs
-    for epoch in range(config.VAE_EPOCHS):
+    tqdm.write('VAE training')
+    for epoch in tqdm(range(config.VAE_EPOCHS)):
         batches = Dataloader.batch_loader(trainY[task], config.BATCH_SIZE,
                                           class_bal=True)
         for batch in batches:
             vae.backward(trainX[batch])
     decoders[task] = vae.get_decoder()
 
+    print('decoders keys:', decoders.keys())
     X_recon = []
     for t in range(task):
         X_t = vae.generate_images(priors[t], decoders[t])
         X_recon.extend(X_t[:config.BATCH_SIZE//task])
 
-    for epoch in range(config.EPOCHS):
+    tqdm.write('FFN training')
+    for epoch in tqdm(range(config.EPOCHS)):
         # preds = net.forward(trainX[batch])
         # batch_loss = net.loss(trainY[task, batch], preds)
         batches = Dataloader.batch_loader(trainY[task], config.BATCH_SIZE,
@@ -131,6 +138,7 @@ for task in tqdm(range(config.n_tasks)):
             ffn.backward(trainX[batch], trainY[task, batch])
 
     # Train on previous tasks
+    print('Training on previous tasks:')
     if len(X_recon) > 0:
         X_recon = tf.convert_to_tensor(X_recon)
         print('shape of X_recon for tasks before {}: {}'.format(task,
@@ -144,3 +152,43 @@ for task in tqdm(range(config.n_tasks)):
 
     calc_metrics('train')
     calc_metrics('valid')
+
+print('Execution time:', datetime.datetime.now() - start)
+
+data_dict = {'train_loss': train_losses,
+             'valid_loss': valid_losses,
+             'test_loss': test_losses,
+             'train_acc': train_accuracy,
+             'valid_acc': valid_accuracy,
+             'test_acc': test_accuracy
+            }
+
+pkl.dump(data_dict, open('output/logs/mlp_data_dict.pkl', 'wb'))
+
+plt.plot(data_dict['train_loss'][0], label='Train loss')
+plt.plot(data_dict['valid_loss'][0], label='Valid loss')
+plt.legend(loc='upper right')
+plt.show()
+
+
+fig, ax = plt.subplots(nrows=5, ncols=2)
+count = 0
+for r in range(5):
+    for c in range(2):
+        ax[r,c].plot(data_dict['train_loss'][count])
+        ax[r,c].plot(data_dict['valid_loss'][count])
+        count += 1
+plt.show()
+plt.savefig('output/plots/losses.png')
+
+fig, ax = plt.subplots(nrows=5, ncols=2)
+count = 0
+for r in range(5):
+    for c in range(2):
+        ax[r,c].plot(data_dict['train_acc'][count])
+        ax[r,c].plot(data_dict['valid_acc'][count])
+        count += 1
+plt.show()
+plt.savefig('output/plots/accuracies.png')
+
+print('Experiment completed')

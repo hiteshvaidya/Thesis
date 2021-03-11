@@ -118,4 +118,5 @@ def batch_loader(labels, batch_size, class_bal=False):
             np.random.shuffle(temp)
             task_batch.append(temp)
         task_batch = np.asarray(task_batch)
-        return np.random.shuffle(task_batch)
+        np.random.shuffle(task_batch)
+        return task_batch
