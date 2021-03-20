@@ -81,8 +81,8 @@ class VAE_network(object):
         h_enc = tf.nn.tanh(utils.FC_layer(X, self.W_enc, self.b_enc))
 
         # mean
-        self.mu = utils.FC_layer(h_enc, self.W_mu, self.b_mu)
-        self.sigma = utils.FC_layer(h_enc, self.W_sigma, self.b_sigma)
+        self.mu = tf.identity(utils.FC_layer(h_enc, self.W_mu, self.b_mu))
+        self.sigma = tf.exp(utils.FC_layer(h_enc, self.W_sigma, self.b_sigma))
 
         # Z is the output of the encoder
         Z = self.mu + tf.multiply(self.epsilon, tf.exp(0.5 * self.sigma))
@@ -93,12 +93,15 @@ class VAE_network(object):
                                                   self.b_reconstruct))
         return output_dec
 
-    def elbo_loss(self, X_rec, X, alpha=1, beta=1):
+    def elbo_loss(self, X_rec, X, priors, alpha=1, beta=1):
         """
         ELBO loss of VAE
+        refer link for KLD loss -
+        https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
+
+        :param priors:  (mean, std) of feature vectors from FFN
         :param beta:    scaling factor for KL-Divergence
         :param alpha:   scaling factor for reconstruction loss
-        :param sigma:   standard deviation in latent layer
         :param X_rec:   reconstructed image
         :param X:       original input image
         :return:        ELBO loss
@@ -112,26 +115,35 @@ class VAE_network(object):
         # KL-divergence is used to bind all the clusters/spheres of latent
         # vectors tightly.
         # Also, it controls the variance/std of latent vector distribution
-        KLD = 1 + self.sigma - tf.square(self.mu) - tf.exp(self.sigma)
-        KLD = -0.5 * tf.reduce_sum(KLD, axis=1)
+        # KLD = 1 + self.sigma - tf.square(self.mu) - tf.exp(self.sigma)
+        # KLD = -0.5 * tf.reduce_sum(KLD, axis=1)
+
+        KLD = tf.math.log(priors[1] / self.sigma) + (tf.square(self.sigma) +
+                                                     tf.square(self.mu - priors[
+                                                         0])) / (
+                          2 * tf.square(priors[1])) - 0.5
 
         variational_lower_bound = tf.reduce_mean(alpha * log_likelihood + beta *
                                                  KLD)
         return variational_lower_bound
 
-    def backward(self, x):
-        '''
+    def backward(self, x, priors):
+        """
         backward pass of the network
         :return: None
-        '''
+        """
         with tf.GradientTape() as tape:
             X_rec = self.forward(x)
-            loss = self.elbo_loss(X_rec, x, alpha=1, beta=1)
+            loss = self.elbo_loss(X_rec, x, priors, alpha=1, beta=1)
         grads = tape.gradient(loss, self.params)
         self.optim.apply_gradients(zip(grads, self.params),
                                    global_step=tf.compat.v1.train.get_or_create_global_step())
 
     def get_decoder(self):
+        """
+        Return decoder of this VAE object
+        :return: decoder weights and biases
+        """
         # collect the decoder parameters and return them back
         decoder = {'mu': self.mu, 'sigma': self.sigma, 'W_dec': self.W_dec,
                    'b_dec': self.b_dec, 'W_reconstruct': self.W_reconstruct,

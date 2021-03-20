@@ -19,7 +19,7 @@ import Dataloader
 from metadata import config
 import VAE
 import FFN
-
+from Welford import Welford
 
 # load mnist data
 # Here mnist labels are recalibrated for each task
@@ -65,7 +65,7 @@ def calc_metrics(choice):
 
         if choice == 'train':
             batches = Dataloader.batch_loader(trainY[t], config.BATCH_SIZE,
-                                          class_bal=True)
+                                              class_bal=True)
         elif choice == 'valid':
             batches = Dataloader.batch_loader(validY[t], config.BATCH_SIZE,
                                               class_bal=True)
@@ -101,7 +101,6 @@ def calc_metrics(choice):
 calc_metrics('train')
 calc_metrics('valid')
 
-
 # Training phase
 
 # Collection of decoders
@@ -112,30 +111,44 @@ priors = OrderedDict()
 start = datetime.datetime.now()
 tqdm.write('Running Tasks')
 for task in tqdm(range(config.n_tasks)):
-    print('\nTraining for task:', task,'-----------------------------')
-    # Train VAE first n epochs
-    tqdm.write('VAE training')
+    print('\nTraining for task:', task, '-----------------------------')
+
+    # Welford's algorithm to calculate moving mean and variance
+    welford = Welford()
+
+    tqdm.write('Training FFN')
+    for epoch in tqdm(range(config.EPOCHS)):
+        # preds = net.forward(trainX[batch])
+        # batch_loss = net.loss(trainY[task, batch], preds)
+        current_batches = Dataloader.batch_loader(trainY[task],
+                                                  config.BATCH_SIZE,
+                                                  class_bal=True)
+
+        # Generate batches from previous tasks
+        for t in range(task):
+            previous_batch =
+
+        for batch in batches:
+            feature_vector = ffn.backward(trainX[batch], trainY[task, batch])
+            welford.add_all(feature_vector)
+
+    # Store mean, std of task data as prior for VAE training
+    priors[task] = (welford.mean(), tf.math.sqrt(welford.var_population()))
+
+    # Train VAE
+    tqdm.write('Training VAE')
     for epoch in tqdm(range(config.VAE_EPOCHS)):
         batches = Dataloader.batch_loader(trainY[task], config.BATCH_SIZE,
                                           class_bal=True)
         for batch in batches:
-            vae.backward(trainX[batch])
+            vae.backward(trainX[batch], priors[task])
     decoders[task] = vae.get_decoder()
 
     print('decoders keys:', decoders.keys())
     X_recon = []
     for t in range(task):
         X_t = vae.generate_images(priors[t], decoders[t])
-        X_recon.extend(X_t[:config.BATCH_SIZE//task])
-
-    tqdm.write('FFN training')
-    for epoch in tqdm(range(config.EPOCHS)):
-        # preds = net.forward(trainX[batch])
-        # batch_loss = net.loss(trainY[task, batch], preds)
-        batches = Dataloader.batch_loader(trainY[task], config.BATCH_SIZE,
-                                          class_bal=True)
-        for batch in batches:
-            ffn.backward(trainX[batch], trainY[task, batch])
+        X_recon.extend(X_t[:config.BATCH_SIZE // task])
 
     # Train on previous tasks
     print('Training on previous tasks:')
@@ -161,7 +174,7 @@ data_dict = {'train_loss': train_losses,
              'train_acc': train_accuracy,
              'valid_acc': valid_accuracy,
              'test_acc': test_accuracy
-            }
+             }
 
 pkl.dump(data_dict, open('output/logs/mlp_data_dict.pkl', 'wb'))
 
@@ -170,13 +183,12 @@ plt.plot(data_dict['valid_loss'][0], label='Valid loss')
 plt.legend(loc='upper right')
 plt.show()
 
-
 fig, ax = plt.subplots(nrows=5, ncols=2)
 count = 0
 for r in range(5):
     for c in range(2):
-        ax[r,c].plot(data_dict['train_loss'][count])
-        ax[r,c].plot(data_dict['valid_loss'][count])
+        ax[r, c].plot(data_dict['train_loss'][count])
+        ax[r, c].plot(data_dict['valid_loss'][count])
         count += 1
 plt.show()
 plt.savefig('output/plots/losses.png')
@@ -185,8 +197,8 @@ fig, ax = plt.subplots(nrows=5, ncols=2)
 count = 0
 for r in range(5):
     for c in range(2):
-        ax[r,c].plot(data_dict['train_acc'][count])
-        ax[r,c].plot(data_dict['valid_acc'][count])
+        ax[r, c].plot(data_dict['train_acc'][count])
+        ax[r, c].plot(data_dict['valid_acc'][count])
         count += 1
 plt.show()
 plt.savefig('output/plots/accuracies.png')
