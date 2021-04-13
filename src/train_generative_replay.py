@@ -126,14 +126,23 @@ for task in tqdm(range(config.n_tasks)):
 
         # Generate batches from previous tasks
         for t in range(task):
-            previous_batch =
+            replayed_task_imgs = vae.generate_images(priors[t], decoders[t])
+            print('shape of replay images for task', t, ':',
+                  str(replayed_task_imgs.shape))
+            replay_labels = tf.ones((replayed_task_imgs.shape[0], 1))
 
-        for batch in batches:
+        for batch in current_batches:
+            # batch_X = trainX[batch]
+            # batch_X.extend(repla)
             feature_vector = ffn.backward(trainX[batch], trainY[task, batch])
+            # print('Feature vector:', feature_vector.shape)
             welford.add_all(feature_vector)
 
     # Store mean, std of task data as prior for VAE training
+    print('welford mean:', welford.mean())
+    print('welford std:', welford.var_population())
     priors[task] = (welford.mean(), tf.math.sqrt(welford.var_population()))
+    print('Prior for task', task, ':', str(priors[task]))
 
     # Train VAE
     tqdm.write('Training VAE')
@@ -143,25 +152,27 @@ for task in tqdm(range(config.n_tasks)):
         for batch in batches:
             vae.backward(trainX[batch], priors[task])
     decoders[task] = vae.get_decoder()
-
-    print('decoders keys:', decoders.keys())
+    print('Decoder for task:', task)
+    for key, val in decoders[task].items():
+        print('keys:', key, '\tval shape:', val.shape)
     X_recon = []
     for t in range(task):
         X_t = vae.generate_images(priors[t], decoders[t])
+        print('generated images:', X_t.shape)
         X_recon.extend(X_t[:config.BATCH_SIZE // task])
 
-    # Train on previous tasks
-    print('Training on previous tasks:')
-    if len(X_recon) > 0:
-        X_recon = tf.convert_to_tensor(X_recon)
-        print('shape of X_recon for tasks before {}: {}'.format(task,
-                                                                X_recon.shape))
-        for epoch in range(1):
-            y_pred = tf.ones([X_recon.shape[0], 1])
-            batches = Dataloader.batch_loader(y_pred, X_recon.shape[0])
-
-            for batch in batches:
-                ffn.backward(X_recon[batch], y_pred[batch])
+    # # Train on previous tasks
+    # print('Training on previous tasks:')
+    # if len(X_recon) > 0:
+    #     X_recon = tf.convert_to_tensor(X_recon)
+    #     print('shape of X_recon for tasks before {}: {}'.format(task,
+    #                                                             X_recon.shape))
+    #     for epoch in range(1):
+    #         y_pred = tf.ones([X_recon.shape[0], 1])
+    #         batches = Dataloader.batch_loader(y_pred, X_recon.shape[0])
+    #
+    #         for batch in batches:
+    #             ffn.backward(X_recon[batch], y_pred[batch])
 
     calc_metrics('train')
     calc_metrics('valid')

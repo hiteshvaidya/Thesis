@@ -185,27 +185,27 @@ class Welford(object):
         # self.old_variance = tf.convert_to_tensor(np.empty(self.shape))
         # self.old_variance = np.nan
         self.old_variance = tf.fill(self.shape, np.nan)
-
-
-# Testing
-ini = np.array([[0, 100],
-                [1, 110],
-                [2, 120]])
-ini = tf.convert_to_tensor(ini, dtype=tf.float32)
-w = Welford()
-w.add_all(ini)
-
-# output
-print(w.mean)  # mean --> [  1. 110.]
-print(w.var_sample())  # sample variance --> [1, 100]
-print(w.var_population())  # population variance --> [ 0.66666667 66.66666667]
-
-ini = np.array([[5, 50],
-                [6, 60],
-                [7, 70]])
-ini = tf.convert_to_tensor(ini, dtype=tf.float32)
-w.add_all(ini)
-# output
-print(w.mean)  # mean --> [  1. 110.]
-print(w.var_sample())  # sample variance --> [1, 100]
-print(w.var_population())  # population variance --> [ 0.66666667 66.66666667]
+#
+#
+# # Testing
+# ini = np.array([[0, 100],
+#                 [1, 110],
+#                 [2, 120]])
+# ini = tf.convert_to_tensor(ini, dtype=tf.float32)
+# w = Welford()
+# w.add_all(ini)
+#
+# # output
+# print(w.mean)  # mean --> [  1. 110.]
+# print(w.var_sample())  # sample variance --> [1, 100]
+# print(w.var_population())  # population variance --> [ 0.66666667 66.66666667]
+#
+# ini = np.array([[5, 50],
+#                 [6, 60],
+#                 [7, 70]])
+# ini = tf.convert_to_tensor(ini, dtype=tf.float32)
+# w.add_all(ini)
+# # output
+# print(w.mean)  # mean --> [  1. 110.]
+# print(w.var_sample())  # sample variance --> [1, 100]
+# print(w.var_population())  # population variance --> [ 0.66666667 66.66666667]

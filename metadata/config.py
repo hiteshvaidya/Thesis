@@ -6,7 +6,7 @@ IMG_SHAPE = (28, 28, 1)
 input_size = 28 * 28
 
 # number of tasks
-n_tasks = 10
+n_tasks = 2
 
 # specify the batch size and number of epochs
 BATCH_SIZE = 32

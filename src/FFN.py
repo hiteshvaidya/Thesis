@@ -20,7 +20,7 @@ class FFN_network(object):
     Code for feed forward network
     """
 
-    def __init__(self, n_x, n_z1, n_z2, n_z3, n_y):
+    def __init__(self, n_x, n_z1, n_z2, n_y):  # n_z3,
         """
         constructor of the network
         :param n_x:     number of nodes in input layer
@@ -33,13 +33,13 @@ class FFN_network(object):
         self.b1 = utils.weight_variable([n_z1], 'b1')
         self.W2 = utils.weight_variable([n_z1, n_z2], 'W2')
         self.b2 = utils.weight_variable([n_z2], 'b2')
-        self.W3 = utils.weight_variable([n_z2, n_z3], 'W3')
-        self.b3 = utils.weight_variable([n_z3], 'b3')
-        self.W4 = utils.weight_variable([n_z3, n_y], 'W3')
-        self.b4 = utils.weight_variable([n_y], 'b3')
+        self.W3 = utils.weight_variable([n_z2, n_z2], 'W3')  # n_z3
+        self.b3 = utils.weight_variable([n_z2], 'b3')  # n_z3
+        # self.W4 = utils.weight_variable([n_z3, n_y], 'W3')
+        # self.b4 = utils.weight_variable([n_y], 'b3')
 
-        self.params = [self.W1, self.b1, self.W2, self.b2, self.W3, self.b3,
-                       self.W4, self.b4]
+        self.params = [self.W1, self.b1, self.W2, self.b2, self.W3, self.b3]
+        # self.W4, self.b4]
 
         self.centroid = []
 
@@ -57,10 +57,10 @@ class FFN_network(object):
         z2 = tf.matmul(z1, self.W2) + self.b2
         z2 = tf.nn.tanh(z2)
         z3 = tf.matmul(z2, self.W3) + self.b3
-        z3 = tf.nn.tanh(z3)
-        Y = tf.matmul(z3, self.W4) + self.b4
-        Y = tf.nn.sigmoid(Y)
-        return z3, Y
+        # z3 = tf.nn.tanh(z3)
+        # Y = tf.matmul(z3, self.W4) + self.b4
+        Y = tf.nn.sigmoid(z3)
+        return [z1, z2], Y
 
     def loss(self, y_true, y_pred, choice='log'):
         """
