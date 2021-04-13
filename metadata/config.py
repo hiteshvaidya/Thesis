@@ -1,6 +1,8 @@
 # import packages
 import os
 
+mnist_path = '/home/group2/research/nac/data/hitesh/mnist_clean'
+
 # specify the shape of the inputs for our network
 IMG_SHAPE = (28, 28, 1)
 input_size = 28 * 28

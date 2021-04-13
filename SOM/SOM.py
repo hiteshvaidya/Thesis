@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import os
 import pandas as pd
+from metadata import config
 
 
 def read_dataframe(filename):
@@ -22,7 +23,7 @@ def load_data():
     load mnist dataset and relabel according to task number
     :return:    train-test-valid split of data
     """
-    path = os.path.join(os.getcwd(), '../mnist_clean')
+    path = config.mnist_path
     trainX = read_dataframe(os.path.join(path, 'trainX.tsv'))
     trainY = read_dataframe(os.path.join(path, 'trainY.tsv'))
     testX = read_dataframe(os.path.join(path, 'testX.tsv'))
@@ -43,21 +44,11 @@ def find_bmu(img, som):
     :param som: som net
     :return:    index of bmu
     """
-    min_dist = tf.constant(np.inf)
-    bmu_idx = -1
-
-    for row in range(som.shape[0]):
-        for col in range(som.shape[1]):
-            node = som[row, col]
-            distance = tf.norm(node - img)
-            if distance < min_dist:
-                min_dist = distance
-                bmu_idx = (row, col)
-
-    return bmu_idx
+    img = tf.reshape(som.shape)
+    return tf.math.argmin(tf.norm(som - img, ord='euclidean', axis=-1))
 
 
-som_dimension = (28, 28, 784)
+som_dimension = (28*28, 1)
 n_iterations = 5000
 init_learning_rate = 0.01
 
@@ -79,6 +70,14 @@ def calculate_influence(distance, radius):
     return np.exp(-distance / (2 * (radius ** 2)))
 
 
+def plot_som():
+    """
+    plots a coloured graph of som
+    :return: None
+    """
+    pass
+
+
 def main():
     # som network
     som = tf.random.normal(som_dimension, mean=0.0, stddev=1.0, seed=0.0)
@@ -87,21 +86,36 @@ def main():
         bmu_idx = find_bmu(img, som)
 
         # decay the SOM parameters
-        r = decay_radius(init_radius, i, time_constant)
-        l = decay_learning_rate(init_learning_rate, i, n_iterations)
+        r = decay_radius(init_radius, index, time_constant)
+        l = decay_learning_rate(init_learning_rate, index, n_iterations)
 
-        for x in range(som.shape[0]):
-            for y in range(som.shape[1]):
-                # w = net[x, y, :].reshape(m, 1)
-                w = som[x, y]
-                w_dist = np.sum((np.array([x, y]) - bmu_idx) ** 2)
-                w_dist = np.sqrt(w_dist)
+        for row in range(som.shape[0]):
+            src = tf.Variable([bmu_idx, 1], dtype=float)
+            tgt = tf.Variable([row, 1], dtype=float)
+            node_dist = tf.norm(tgt - src, ord='euclidean')
+            node = som[row, 1]
 
-                if w_dist <= r:
-                    # calculate the degree of influence (based on the 2-D distance)
-                    influence = calculate_influence(w_dist, r)
+            if node_dist <= r:
+                # calculate the degree of influence (based on the 2-D distance)
+                influence = calculate_influence(w_dist, r)
 
-                    # new w = old w + (learning rate * influence * delta)
-                    # where delta = input vector (t) - old w
-                    new_w = w + (l * influence * (t - w))
-                    net[x, y, :] = new_w.reshape(1, 3)
+                # new w = old w + (learning rate * influence * delta)
+                # where delta = input vector (t) - old w
+                new_node = node + (l * influence * (img - node))
+                som[row, 1] = new_node
+
+        # for x in range(som.shape[0]):
+        #     for y in range(som.shape[1]):
+        #         # w = net[x, y, :].reshape(m, 1)
+        #         w = som[x, y]
+        #         w_dist = np.sum((np.array([x, y]) - bmu_idx) ** 2)
+        #         w_dist = np.sqrt(w_dist)
+        #
+        #         if w_dist <= r:
+        #             # calculate the degree of influence (based on the 2-D distance)
+        #             influence = calculate_influence(w_dist, r)
+        #
+        #             # new w = old w + (learning rate * influence * delta)
+        #             # where delta = input vector (t) - old w
+        #             new_w = w + (l * influence * (t - w))
+        #             net[x, y, :] = new_w.reshape(1, 3)
