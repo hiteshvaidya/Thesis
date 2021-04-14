@@ -1,6 +1,7 @@
 # import packages
 import os
 
+parent_direc = '/home/group2/research/nac/data/hitesh/Thesis'
 mnist_path = '/home/group2/research/nac/data/hitesh/mnist_clean'
 
 # specify the shape of the inputs for our network

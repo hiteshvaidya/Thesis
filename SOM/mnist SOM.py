@@ -44,7 +44,7 @@ def find_bmu(img, som):
     :param som: som net
     :return:    index of bmu
     """
-    img = tf.reshape(som.shape)
+    # img = tf.reshape(img, som.shape)
     return tf.math.argmin(tf.norm(som - img, ord='euclidean', axis=-1))
 
 
@@ -70,39 +70,66 @@ def calculate_influence(distance, radius):
     return np.exp(-distance / (2 * (radius ** 2)))
 
 
-def plot_som():
+def plot_som(som, shape, post=False):
     """
     plots a coloured graph of som
     :return: None
     """
-    pass
+    som = tf.reshape(som, shape)
+    plt.imshow(som, interpolation='nearest')
+    if post:
+        plt.title('Self organizing map after training')
+        plt.savefig(os.path.join(config.parent_direc, 'output', 'mnist_post-som.png'))
+    else:
+        plt.title('Self organizing map before training')
+        plt.savefig(os.path.join(config.parent_direc, 'output', 'mnist_pre-som.png'))
+    # plt.show()
+
 
 
 def main():
     # som network
     som = tf.random.normal(som_dimension, mean=0.0, stddev=1.0, seed=0.0)
-    for index in range(n_iterations):
-        img = trainX[np.random.randint(trainX.shape[0])]
+    # print('som:', som)
+    plot_som(som, (28,28), False)
+    tqdm.write('Training Self organizing map...')
+    for index in tqdm(range(n_iterations)):
+        # print('index:', index)
+        img = trainX[np.random.randint(trainX.shape[0])].reshape(som.shape)
         bmu_idx = find_bmu(img, som)
+        bmu_idx = tf.cast(bmu_idx, float)
 
         # decay the SOM parameters
-        r = decay_radius(init_radius, index, time_constant)
-        l = decay_learning_rate(init_learning_rate, index, n_iterations)
+        radius = decay_radius(init_radius, index, time_constant)
+        lr = decay_learning_rate(init_learning_rate, index, n_iterations)
 
+        temp_som = som.numpy()
+        changed = False
         for row in range(som.shape[0]):
-            src = tf.Variable([bmu_idx, 1], dtype=float)
-            tgt = tf.Variable([row, 1], dtype=float)
-            node_dist = tf.norm(tgt - src, ord='euclidean')
-            node = som[row, 1]
+            tgt = tf.Variable(row, dtype=float)
+            # print('bmu_idx, row:', (bmu_idx, row))
+            node_dist = tf.norm(tgt - bmu_idx, ord='euclidean')
+            # print('node_dist:', node_dist)
+            # print('row number:', row)
+            # print('current som shape:', som.shape)
+            # print('current node from som:', som[row, 0])
+            node = som[row, 0]
 
-            if node_dist <= r:
+            if node_dist <= radius:
                 # calculate the degree of influence (based on the 2-D distance)
-                influence = calculate_influence(w_dist, r)
+                influence = calculate_influence(node_dist, radius)
 
                 # new w = old w + (learning rate * influence * delta)
                 # where delta = input vector (t) - old w
-                new_node = node + (l * influence * (img - node))
-                som[row, 1] = new_node
+                new_node = node + (lr * influence * (img[row,0] - som[row,0]))
+                # print('new_node:', new_node)
+                # som[row, 0] = new_node
+                temp_som[row,0] = new_node
+                changed = True
+        if changed:
+            som = tf.convert_to_tensor(temp_som)
+
+    plot_som(som, (28,28), True)
 
         # for x in range(som.shape[0]):
         #     for y in range(som.shape[1]):
@@ -119,3 +146,7 @@ def main():
         #             # where delta = input vector (t) - old w
         #             new_w = w + (l * influence * (t - w))
         #             net[x, y, :] = new_w.reshape(1, 3)
+
+
+if __name__ == '__main__':
+    main()

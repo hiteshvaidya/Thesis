@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" uploadOnCheckin="ea26ea63-207e-452c-9132-ac5ee00aa0fb" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true" showEqualInSync="true" showDifferentInSync="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="hv8322@champ.cs.rit.edu:22" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true" showEqualInSync="true" showDifferentInSync="false">
     <serverData>
       <paths name="hv8322@champ.cs.rit.edu:22">
         <serverdata>
@@ -10,7 +10,6 @@
         </serverdata>
       </paths>
     </serverData>
-    <option name="myUploadOnCheckinName" value="hv8322@champ.cs.rit.edu:22 password" />
     <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>
