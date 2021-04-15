@@ -14,7 +14,8 @@ def read_dataframe(filename):
     :return:            dataframe as numpy array
     """
     data = pd.read_csv(filename, sep='\t', header=None, index_col=False,
-                       dtype=np.float32).to_numpy()
+                       dtype=float)
+    data = tf.convert_to_tensor(data)
     return data
 
 
@@ -48,7 +49,7 @@ def find_bmu(img, som):
     return tf.math.argmin(tf.norm(som - img, ord='euclidean', axis=-1))
 
 
-som_dimension = (28*28, 1)
+som_dimension = (10, 28 * 28)
 n_iterations = 5000
 init_learning_rate = 0.01
 
@@ -70,16 +71,16 @@ def calculate_influence(distance, radius):
     return np.exp(-distance / (2 * (radius ** 2)))
 
 
-def plot_som(som, shape, post=False):
+def plot_som(som, post=False):
     """
     plots a coloured graph of som
     :return: None
     """
-    som = tf.reshape(som, shape)
     plt.imshow(som, interpolation='nearest')
     if post:
         plt.title('Self organizing map after training')
-        plt.savefig(os.path.join(config.parent_direc, 'output', 'mnist_post-som.png'))
+        plt.savefig(
+            os.path.join(config.parent_direc, 'output', 'mnist_post-som.png'))
     else:
         plt.title('Self organizing map before training')
         plt.savefig(os.path.join(config.parent_direc, 'output', 'mnist_pre-som.png'))
@@ -91,11 +92,11 @@ def main():
     # som network
     som = tf.random.normal(som_dimension, mean=0.0, stddev=1.0, seed=0.0)
     # print('som:', som)
-    plot_som(som, (28,28), False)
+    plot_som(som, False)
     tqdm.write('Training Self organizing map...')
     for index in tqdm(range(n_iterations)):
         # print('index:', index)
-        img = trainX[np.random.randint(trainX.shape[0])].reshape(som.shape)
+        img = trainX[np.random.randint(trainX.shape[0])]
         bmu_idx = find_bmu(img, som)
         bmu_idx = tf.cast(bmu_idx, float)
 
@@ -105,15 +106,12 @@ def main():
 
         temp_som = som.numpy()
         changed = False
-        for row in range(som.shape[0]):
-            tgt = tf.Variable(row, dtype=float)
-            # print('bmu_idx, row:', (bmu_idx, row))
-            node_dist = tf.norm(tgt - bmu_idx, ord='euclidean')
-            # print('node_dist:', node_dist)
-            # print('row number:', row)
-            # print('current som shape:', som.shape)
-            # print('current node from som:', som[row, 0])
-            node = som[row, 0]
+        for row, node in enumerate(som):
+
+            # tgt = tf.Variable(row, dtype=float)
+            # node_dist = tf.norm(tgt - bmu_idx, ord='euclidean')
+
+            node_dist = tf.norm(node - img, ord='euclidean')
 
             if node_dist <= radius:
                 # calculate the degree of influence (based on the 2-D distance)
@@ -121,15 +119,15 @@ def main():
 
                 # new w = old w + (learning rate * influence * delta)
                 # where delta = input vector (t) - old w
-                new_node = node + (lr * influence * (img[row,0] - som[row,0]))
+                new_node = node + (lr * influence * (img - node))
                 # print('new_node:', new_node)
                 # som[row, 0] = new_node
-                temp_som[row,0] = new_node
+                temp_som[row] = new_node
                 changed = True
         if changed:
             som = tf.convert_to_tensor(temp_som)
 
-    plot_som(som, (28,28), True)
+    plot_som(som, True)
 
         # for x in range(som.shape[0]):
         #     for y in range(som.shape[1]):
