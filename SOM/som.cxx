@@ -249,7 +249,7 @@ void read_iris(string filename, vector<Sample> &samples) {
 int main(int number_arguments, char** arguments) {
     if (number_arguments != 6) {
         cerr << "ERROR: incorrect usage. try:" << endl;
-        cerr << "./" << arguments[0] << " <iris filename> <max epochs> <number units> <learning rate> <radius>" << endl;
+        cerr << arguments[0] << " <iris filename> <max epochs> <number units> <learning rate> <radius>" << endl;
         exit(1);
     }
     string input_filename(arguments[1]);
