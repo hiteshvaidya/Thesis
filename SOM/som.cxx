@@ -3,6 +3,8 @@
 #include <algorithm>
 using std::random_shuffle;
 
+#include <chrono>
+
 #include <fstream>
 using std::ifstream;
 
@@ -147,6 +149,8 @@ class SelfOrganizingMap {
 
         SelfOrganizingMap(int number_units, double _learning_rate, double _radius, int unit_length) : learning_rate(_learning_rate), radius(_radius), units(number_units, Unit(unit_length)) {
             default_random_engine generator;
+            generator.seed(std::chrono::system_clock::now().time_since_epoch().count());
+
             normal_distribution<double> distribution(0.0,1.0);
 
             for (int i = 0; i < units.size(); i++) {
