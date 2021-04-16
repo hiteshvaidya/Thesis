@@ -111,7 +111,7 @@ class Unit {
         vector<int> class_stats;
         vector<double> values;
 
-        Unit(int length) : class_stats(length, 0.0), values(length, 0.0) {
+        Unit(int length, int n_types) : class_stats(n_types, 0.0), values(length, 0.0) {
         }
 
         void reset_class_stats() {
@@ -147,7 +147,7 @@ class SelfOrganizingMap {
         double radius;
         vector<Unit> units;
 
-        SelfOrganizingMap(int number_units, double _learning_rate, double _radius, int unit_length) : learning_rate(_learning_rate), radius(_radius), units(number_units, Unit(unit_length)) {
+        SelfOrganizingMap(int number_units, double _learning_rate, double _radius, int unit_length, int n_types) : learning_rate(_learning_rate), radius(_radius), units(number_units, Unit(unit_length, n_types)) {
             default_random_engine generator;
             generator.seed(std::chrono::system_clock::now().time_since_epoch().count());
 
@@ -278,9 +278,12 @@ int main(int number_arguments, char** arguments) {
         if (samples[i].type > n_types) n_types = samples[i].type;
     }
     n_types++;
-    cout << "there are " << n_types << " classes in the dataset." << endl;
 
-    SelfOrganizingMap som(number_units, learning_rate, radius, n_types);
+    cout << "there are " << n_types << " classes in the dataset." << endl;
+    int input_length = samples[0].values.size();
+    cout << "each sample has " << input_length << " values." << endl;
+
+    SelfOrganizingMap som(number_units, learning_rate, radius, input_length, n_types);
     //make sure we're initializing the SOM decently
     cout << som << endl;
 
