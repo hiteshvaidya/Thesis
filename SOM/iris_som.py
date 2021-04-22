@@ -14,18 +14,20 @@ def load_data(filename):
     :return:            processed data
     """
     # read data
-    data = pd.read_csv(filename, sep=',', index_col=False, header=0)
+    data = pd.read_csv(filename, sep=',', index_col=False, header=0).to_numpy()
     # replace strings in class labels with numbers
     # data[data[:, -1] == 'Iris-setosa', -1] = 1
     # data[data[:, -1] == 'Iris-versicolor', -1] = 2
     # data[data[:, -1] == 'Iris-virginica', -1] = 3
-    data = data.drop(['class'], axis=1).to_numpy()
+    # labels = data['class']
+    # data = data.drop(['class'], axis=1).to_numpy()
 
-    # standardize data
+    # Normalize data
     for col in range(data.shape[1] - 1):
         mean = np.mean(data[:, col])
         std = np.std(data[:, col])
         data[:, col] = (data[:, col] - mean) / std
+        # print('Normalized column', col)
     np.random.shuffle(data)
     return data
 
@@ -87,10 +89,8 @@ def plot_som(init_som, final_som):
     :param final_som:         SOM after training
     :return:            None
     """
-    print('initial SOM:')
-    print(init_som)
-    print('\nFinal SOM:')
-    print(final_som)
+    print('Difference between final and initial SOM:')
+    print(final_som - init_som)
 
     fig, ax = plt.subplots(1, 2)
     fig.suptitle('Self Organizing Maps')
@@ -110,18 +110,20 @@ def main():
     main function
     :return: None
     """
-    som_dimension = (20, 4)
+    # SOM parameters
+    som_dimension = (10, 4)
+    init_radius = 0.2
+    n_iterations = 20
+    init_lr = 0.01
     # initialize the SOM
-    som = np.random.normal(0, 1.0, size=som_dimension)
+    som = np.random.normal(0, 0.1, size=som_dimension)
+    time_constant = n_iterations / math.log(init_radius)
+    init_som = np.copy(som)
+
     # load data
     data = load_data('iris.csv')
-
-    init_som = som
-    n_iterations = 20
-    # SOM parameters
-    init_radius = 0.1
-    time_constant = n_iterations / math.log(init_radius)
-    init_lr = 0.05
+    som_count = [{0: 0, 1: 0, 2: 0} for x in range(som.shape[0])]
+    # class_count = {0: 0, 1: 0, 2: 0}
 
     # tqdm.write('training SOM')
     for iteration in (range(n_iterations)):
@@ -130,22 +132,39 @@ def main():
         print('selected data point:')
         print(data_pt)
         # find the index of best matching unit
-        bmu_index = find_bmu(data_pt, som)
+        bmu_index = find_bmu(data_pt[:-1], som)
+        print('BMU index:', bmu_index)
+        som_count[bmu_index][data_pt[-1]] += 1
+        data_pt = data_pt[:-1]
 
         # decay the SOM parameters
         radius = decay_radius(init_radius, iteration, time_constant)
         lr = decay_lr(init_lr, iteration, n_iterations)
 
-        for row in range(som.shape[0]):
+        for row in range(som_dimension[0]):
             # distance of SOM unit from bmu
             bmu_dist = np.linalg.norm(som[bmu_index] - som[row])
-
+            print('bmu_dist, radius:', bmu_dist, radius)
             if bmu_dist <= radius:
+                print('Passed if condition')
                 neighbourhood = get_neighbourhood(bmu_dist, radius)
                 # update SOM unit
+                print('SOM[', row, '] before:', som[row])
                 som[row] = som[row] + lr * neighbourhood * (data_pt - som[row])
-        print('Current SOM:')
-        print(som)
+                print('SOM[', row, '] after:', som[row])
+        print('change in SOM:')
+        print(som - init_som)
+
+    print('\nSOM after training')
+    for index in range(som.shape[0]):
+        print('%s | BMU FOR (%d - %d) (%d - %d) (%d - %d)' % (som[index], 0,
+                                                              som_count[
+                                                                  index][0], 1,
+                                                              som_count[index][
+                                                                  1], 2,
+                                                              som_count[index][
+                                                                  2]))
+    print()
     plot_som(init_som, som)
 
 
