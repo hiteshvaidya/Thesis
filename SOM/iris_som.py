@@ -112,11 +112,11 @@ def main():
     """
     # SOM parameters
     som_dimension = (10, 4)
-    init_radius = 0.2
-    n_iterations = 20
+    init_radius = 2
+    n_iterations = 50
     init_lr = 0.01
     # initialize the SOM
-    som = np.random.normal(0, 0.1, size=som_dimension)
+    som = np.random.normal(0, 0.5, size=som_dimension)
     time_constant = n_iterations / math.log(init_radius)
     init_som = np.copy(som)
 
@@ -141,10 +141,14 @@ def main():
         radius = decay_radius(init_radius, iteration, time_constant)
         lr = decay_lr(init_lr, iteration, n_iterations)
 
+        # avg distance of BMU from all other units
+        avg_bmu_dist = 0
+
         for row in range(som_dimension[0]):
             # distance of SOM unit from bmu
             bmu_dist = np.linalg.norm(som[bmu_index] - som[row])
-            print('bmu_dist, radius:', bmu_dist, radius)
+            avg_bmu_dist += bmu_dist
+            print('(bmu_dist, radius):', (bmu_dist, radius))
             if bmu_dist <= radius:
                 print('Passed if condition')
                 neighbourhood = get_neighbourhood(bmu_dist, radius)
@@ -152,8 +156,11 @@ def main():
                 print('SOM[', row, '] before:', som[row])
                 som[row] = som[row] + lr * neighbourhood * (data_pt - som[row])
                 print('SOM[', row, '] after:', som[row])
+        print('\nAverage distance of BMU from all the SOM units:',
+              avg_bmu_dist / som_dimension[0])
         print('change in SOM:')
         print(som - init_som)
+        print('-------------------------------------------------------\n')
 
     print('\nSOM after training')
     for index in range(som.shape[0]):
