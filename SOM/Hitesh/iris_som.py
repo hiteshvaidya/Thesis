@@ -7,6 +7,7 @@ import pandas as pd
 import math
 
 
+
 def load_data(filename):
     """
     load and pre-process data
@@ -15,12 +16,6 @@ def load_data(filename):
     """
     # read data
     data = pd.read_csv(filename, sep=',', index_col=False, header=0).to_numpy()
-    # replace strings in class labels with numbers
-    # data[data[:, -1] == 'Iris-setosa', -1] = 1
-    # data[data[:, -1] == 'Iris-versicolor', -1] = 2
-    # data[data[:, -1] == 'Iris-virginica', -1] = 3
-    # labels = data['class']
-    # data = data.drop(['class'], axis=1).to_numpy()
 
     # Normalize data
     for col in range(data.shape[1] - 1):
@@ -124,11 +119,19 @@ def main():
     data = load_data('iris.csv')
     som_count = [{0: 0, 1: 0, 2: 0} for x in range(som.shape[0])]
     # class_count = {0: 0, 1: 0, 2: 0}
+    collected = []
 
     # tqdm.write('training SOM')
     for iteration in (range(n_iterations)):
         # choose a random data point
-        data_pt = data[np.random.choice(data.shape[0], 1, replace=False)][0]
+        index = np.random.choice(data.shape[0], 1, replace=False)
+        while True:
+            if index not in collected:
+                data_pt = data[index][0]
+                collected.append(index)
+                break
+            else:
+                index = np.random.choice(data.shape[0], 1, replace=False)
         print('selected data point:')
         print(data_pt)
         # find the index of best matching unit
