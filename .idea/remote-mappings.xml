@@ -4,13 +4,7 @@
     <list>
       <list>
         <remote-mappings server-id="python@ea26ea63-207e-452c-9132-ac5ee00aa0fb" />
-        <remote-mappings server-id="python@sftp://hv8322@champ.cs.rit.edu:22/opt/anaconda3/envs/lifelong/bin/python">
-          <settings>
-            <list>
-              <mapping local-root="$PROJECT_DIR$" remote-root="/home/group2/research/nac/data/hitesh/Thesis" />
-            </list>
-          </settings>
-        </remote-mappings>
+        <remote-mappings server-id="python@sftp://hv8322@champ.cs.rit.edu:22/opt/anaconda3/envs/lifelong/bin/python" />
       </list>
     </list>
   </component>

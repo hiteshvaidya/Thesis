@@ -6,6 +6,7 @@ This file loads train, test and validation data in required format
 import numpy as np
 import pandas as pd
 import os
+import tensorflow as tf
 
 
 def read_dataframe(filename):
@@ -44,6 +45,17 @@ def relabel(labels):
     return new_labels
 
 
+def standardize(data):
+    """
+    standardize a dataset
+    :param data: dataset
+    :return: normalized dataset
+    """
+    data = tf.cast(data, tf.float64)
+    data = (data - tf.math.reduce_mean(data)) / tf.math.reduce_std(data)
+    return data
+
+
 def load_data():
     """
     load mnist dataset and relabel according to task number
@@ -56,6 +68,11 @@ def load_data():
     testY = read_dataframe(os.path.join(path, 'testY.tsv'))
     validX = read_dataframe(os.path.join(path, 'validX.tsv'))
     validY = read_dataframe(os.path.join(path, 'validY.tsv'))
+
+    # standardize data
+    trainX = standardize(trainX)
+    validX = standardize(validX)
+    testX = standardize(testX)
 
     # convert mnist one-hot labels to task-wise labels of 1's and 0's
     trainY = relabel(trainY)

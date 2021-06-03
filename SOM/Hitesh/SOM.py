@@ -18,7 +18,7 @@ class SOM(object):
     Class for SOM
     """
 
-    def __init__(self, som_dimension, n_iterations, lr, radius, mean, std,
+    def __init__(self, som_dimension, n_epochs, lr, radius, mean, std,
                  n_labels, time_const, seed=0):
         """
         Constructor
@@ -31,16 +31,14 @@ class SOM(object):
         :param seed:            seed value for initialization of SOM
         """
         self.dimension = som_dimension
-        self.iterations = n_iterations
+        self.n_epochs = n_epochs
         self.init_lr = lr
         self.init_radius = radius
         self.som = tf.random.normal(som_dimension, mean, std, seed)
         self.init_som = np.copy(self.som)
         self.time_const = time_const
-        self.som_count = [dict() for x in range(self.dimension[0])]
-        for index in range(len(self.som_count)):
-            for label in range(n_labels):
-                self.som_count[index][label] = 0
+        self.som_count = [{y: 0 for y in range(n_labels)} for x in range(
+            som_dimension[0])]
 
     def find_bmu(self, data):
         """
@@ -50,7 +48,7 @@ class SOM(object):
         :return:        index of bmu
         """
         bmu_idx = tf.math.argmin(tf.norm(data - self.som, ord='euclidean',
-                                         axis=-1))
+                                         axis=-1)).numpy()
         return bmu_idx
 
     def decay_radius(self, i):
@@ -60,7 +58,10 @@ class SOM(object):
         :param time_constant:   time constant
         :return:                decayed radius
         """
-        return self.init_radius * tf.exp(-i / self.time_const)
+        # return self.init_radius * tf.exp(-i / self.time_const)
+        radius = self.init_radius * tf.exp(-i / self.time_const)
+        radius = tf.cast(radius, tf.float64)
+        return radius
 
     def decay_learning_rate(self, i):
         """
@@ -69,7 +70,10 @@ class SOM(object):
         :param n_iterations:    number of total iterations
         :return:                deacayed learning rate
         """
-        return self.init_lr * tf.exp(-i / self.iterations)
+        # return self.init_lr * tf.exp(-i / self.iterations)
+        lr = self.init_lr * tf.exp(-i / self.n_epochs)
+        lr = tf.cast(lr, tf.float64)
+        return lr
 
     def get_neighbourhood(self, distance, radius):
         """
@@ -78,7 +82,10 @@ class SOM(object):
         :param radius:  Radius of distance from BMU
         :return:        influence/neighbourhood
         """
-        return np.exp(-distance / (2 * (radius ** 2)))
+        # return np.exp(-distance / (2 * (radius ** 2)))
+        influence = tf.exp(-distance / (2 * (radius ** 2)))
+        influence = tf.cast(influence, tf.float64)
+        return influence
 
     def som_plot(self):
         """
@@ -101,7 +108,7 @@ class SOM(object):
         fig.colorbar(pos1, ax=ax[1])
         plt.show()
 
-    def train_som(self, data):
+    def train_som(self, data, labels):
         """
         Train the SOM
         :return: trained SOM
@@ -112,56 +119,52 @@ class SOM(object):
         # time_constant = n_iterations / tf.math.log(init_radius)
 
         tqdm.write('training SOM')
-        for iteration in (range(self.iterations)):
-            # choose a random data point
-            data_pt = data[np.random.choice(data.shape[0], 1, replace=False)][0]
-            # print('selected data point:')
-            # print(data_pt)
-            # find the index of best matching unit
-            bmu_index = self.find_bmu(data_pt)
-            # print('BMU index:', bmu_index)
-            # self.som_count[bmu_index][data_pt[-1]] += 1
-            # data_pt = data_pt[:-1]
 
-            # decay the SOM parameters
-            radius = self.decay_radius(iteration)
-            lr = self.decay_learning_rate(iteration)
+        indices = tf.convert_to_tensor(np.arange(data.shape[0]))
+        for epoch in range(self.n_epochs):
+            print('SOM Training epoch %d...' % epoch)
 
-            # avg distance of BMU from all other units
-            avg_bmu_dist = 0
+            avg_bmu_dist_per_epoch = 0
+            tf.random.shuffle(indices)
+            for index in indices:
+                input = data[index]
+                label = labels[index]
+                bmu_idx = self.find_bmu(input)
+                self.som_count[bmu_idx][label.numpy()] += 1
 
-            for row in range(self.dimension[0]):
-                # distance of SOM unit from bmu
-                bmu_dist = np.linalg.norm(self.som[bmu_index] - self.som[row])
-                avg_bmu_dist += bmu_dist
-                print('(bmu_dist, radius):', (bmu_dist, radius))
-                if bmu_dist <= radius:
-                    print('Passed if condition')
-                    neighbourhood = self.get_neighbourhood(bmu_dist, radius)
-                    # update SOM unit
-                    print('SOM[', row, '] before:', self.som[row])
-                    self.som[row] = self.som[row] + lr * neighbourhood * (
-                            data_pt - self.som[row])
-                    print('SOM[', row, '] after:', self.som[row])
-            print('\nAverage distance of BMU from all the SOM units:',
-                  avg_bmu_dist / self.dimension[0])
-            print('change in SOM:')
-            print(self.som - self.init_som)
-            print('-------------------------------------------------------\n')
+                # decay the SOM parameters
+                radius = self.decay_radius(epoch)
+                lr = self.decay_learning_rate(epoch)
 
-        print('\nSOM after training')
-        for index in range(self.dimension[0]):
-            print('%s | BMU FOR (%d - %d) (%d - %d) (%d - %d)' % (self.som[
-                                                                      index], 0,
-                                                                  self.som_count[
-                                                                      index][0],
-                                                                  1,
-                                                                  self.som_count[
-                                                                      index][
-                                                                      1], 2,
-                                                                  self.som_count[
-                                                                      index][
-                                                                      2]))
-        print()
-        self.plot_som()
-        return self.som, self.som_count
+                # avg distance of BMU from all other units
+                avg_bmu_dist_per_sample = 0
+                # temporary som to bypass eager execution error
+                temp_som = self.som.numpy()
+                # if changed flag is set, then update SOM
+                changed = False
+                for row, node in enumerate(self.som):
+                    node_dist = tf.norm(self.som[bmu_idx] - node,
+                                        ord='euclidean')
+                    avg_bmu_dist_per_sample += node_dist
+                    if node_dist <= radius:
+                        # calculate the degree of influence (based on the 2-D distance)
+                        influence = self.get_neighbourhood(node_dist, radius)
+                        new_node = node + (lr * influence * (input - node))
+                        temp_som[row] = new_node
+                        changed = True
+                if changed:
+                    som = tf.convert_to_tensor(temp_som)
+
+                avg_bmu_dist_per_sample /= self.som.shape[0] - 1
+                avg_bmu_dist_per_epoch += avg_bmu_dist_per_sample
+
+            avg_bmu_dist_per_epoch /= len(indices)
+            print('Epoch ', epoch)
+            print('Average BMU distance of all units per sample per epoch:',
+                  avg_bmu_dist_per_epoch.numpy())
+            print('\nSOM:')
+            for index in range(som.shape[0]):
+                print('[%s | BMU FOR' % index, end=' ')
+                for key, value in self.som_count[index].items():
+                    print('(%d - %d)' % (key, value), end=' ')
+                print(']')
