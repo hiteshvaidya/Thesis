@@ -199,12 +199,11 @@ def main():
                 # calculate the degree of influence (based on the 2-D distance)
                 influence = calculate_influence(node_dist, radius)
                 new_node = node + (lr * influence * (data - node))
-                if row < som.shape[0] - 1:
+                if row < som.shape[0]-1:
                     som = tf.concat([som[:row], tf.reshape(new_node, (1, -1)),
-                                     som[row + 1:]], axis=0)
-                elif row == som.shape[0] - 1:
-                    som = tf.concat([som[:-1], tf.reshape(new_node, (1, -1))],
-                                    axis=0)
+                                     som[row+1:]], axis=0)
+                elif row == som.shape[0]-1:
+                    som = tf.concat([som[:-1], tf.reshape(new_node, (1, -1))], axis=0)
                 # temp_som[row] = new_node
             #     changed = True
             # if changed:
