@@ -115,8 +115,6 @@ def plot_som(init_som, final_som, path):
     # plt.show()
 
     plt.savefig('som_data/MNIST SOM confusion matrices.png')
-    pkl.dump((init_som, final_som),
-             open(os.path.join(path, 'soms.pkl'), 'wb'))
 
     # plt.imshow(som, interpolation='nearest')
     # if post:
@@ -144,6 +142,7 @@ def main():
     tau1 = tf.cast(trainX.shape[0], tf.float64) / tf.math.log(
         init_radius)
     tau2 = tf.cast(trainX.shape[0], tf.float64)
+    unit_labels = []
 
     # initial neighbourhood radius
     # init_radius = max(som_dimension[0], som_dimension[1]) / 2
@@ -230,6 +229,19 @@ def main():
         pkl.dump((init_som, som), open(path + 'epoch-' + str(epoch) + '.pkl',
                                        'wb'))
 
+        if epoch == n_epochs - 1:
+            # Labels for each unit of SOM
+            for index in range(som.shape[0]):
+                max_count = 0
+                label = -1
+                for key, val in som_count[index].items():
+                    if val >= max_count:
+                        max_count = val
+                        label = key
+                unit_labels.append(label)
+
+    pkl.dump((init_som, som, unit_labels), open(os.path.join(path, 'soms.pkl'),
+                                                'wb'))
     print('Program execution time =', str(timedelta(seconds=time.time() -
                                                             execution_st)))
     print()

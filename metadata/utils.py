@@ -62,3 +62,16 @@ def custom_BCE(y_true, y_pred, offset=1e-6):
     vec = -tf.reduce_sum(y_true * tf.math.log(p) + (1.0 - y_true) *
                          tf.math.log(1.0 - p), axis=1)
     return vec
+
+
+def categorical_CE(y_true, y_pred, offset=1e-6):
+    """
+    custom implementation of categorical cross entropy
+    :param offset: offset for clipping values
+    :param y_true: true label
+    :param y_pred: predicted output
+    :return: Categorical Cross Entropy
+    """
+    p = tf.clip_by_value(y_pred, offset, 1 - offset)
+    vec = -tf.reduce_sum(y_true * tf.math.log(p), axis=1)
+    return vec

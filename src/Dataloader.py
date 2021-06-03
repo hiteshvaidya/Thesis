@@ -56,7 +56,7 @@ def standardize(data):
     return data
 
 
-def load_data():
+def load_data(incremental_labels=False):
     """
     load mnist dataset and relabel according to task number
     :return:    train-test-valid split of data
@@ -74,10 +74,11 @@ def load_data():
     validX = standardize(validX)
     testX = standardize(testX)
 
-    # convert mnist one-hot labels to task-wise labels of 1's and 0's
-    trainY = relabel(trainY)
-    testY = relabel(testY)
-    validY = relabel(validY)
+    if incremental_labels:
+        # convert mnist one-hot labels to task-wise labels of 1's and 0's
+        trainY = relabel(trainY)
+        testY = relabel(testY)
+        validY = relabel(validY)
 
     return trainX, trainY, testX, testY, validX, validY
 
