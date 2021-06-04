@@ -19,7 +19,7 @@ import Dataloader
 from metadata import config
 import VAE
 import FFN
-from Welford import Welford
+from SOM.Hitesh.Welford import Welford
 
 # load mnist data
 # Here mnist labels are recalibrated for each task

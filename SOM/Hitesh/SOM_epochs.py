@@ -9,7 +9,7 @@ import pandas as pd
 import math
 import time
 from datetime import timedelta
-
+import Welford
 
 def read_dataframe(filename):
     """
@@ -143,6 +143,7 @@ def main():
         init_radius)
     tau2 = tf.cast(trainX.shape[0], tf.float64)
     unit_labels = []
+    variance = []
 
     # initial neighbourhood radius
     # init_radius = max(som_dimension[0], som_dimension[1]) / 2
@@ -152,9 +153,7 @@ def main():
     # som network
     som = tf.random.normal(som_dimension, mean=0.0, stddev=0.1, seed=0.0,
                            dtype=tf.float64)
-
     init_som = tf.identity(som)
-
     indices = tf.convert_to_tensor(np.arange(trainX.shape[0]))
 
     execution_st = time.time()
@@ -166,6 +165,11 @@ def main():
         # print('som_count:', som_count)
         avg_bmu_dist_per_epoch = 0
         tf.random.shuffle(indices)
+        if epoch == n_epochs - 1:
+            som_welford = []
+            for index in range(som_dimension[0]):
+                som_welford.append(Welford.Welford())
+
         tqdm.write('Training indices for epoch ' + str(epoch))
         epoch_st = time.time()
         for iteration, index in tqdm(enumerate(indices)):
@@ -197,12 +201,16 @@ def main():
                 # if node_dist < radius:
                 # calculate the degree of influence (based on the 2-D distance)
                 influence = calculate_influence(node_dist, radius)
-                new_node = node + (lr * influence * (data - node))
-                if row < som.shape[0]-1:
+                difference = data - node
+                new_node = node + (lr * influence * difference)
+                if epoch == n_epochs - 1 and row == bmu_idx:
+                    som_welford[bmu_idx].add(difference)
+                if row < som.shape[0] - 1:
                     som = tf.concat([som[:row], tf.reshape(new_node, (1, -1)),
-                                     som[row+1:]], axis=0)
-                elif row == som.shape[0]-1:
-                    som = tf.concat([som[:-1], tf.reshape(new_node, (1, -1))], axis=0)
+                                     som[row + 1:]], axis=0)
+                elif row == som.shape[0] - 1:
+                    som = tf.concat([som[:-1], tf.reshape(new_node, (1, -1))],
+                                    axis=0)
                 # temp_som[row] = new_node
             #     changed = True
             # if changed:
@@ -240,8 +248,10 @@ def main():
                         label = key
                 unit_labels.append(label)
 
-    pkl.dump((init_som, som, unit_labels), open(os.path.join(path, 'soms.pkl'),
-                                                'wb'))
+                variance.append(som_welford[index].var_population())
+
+    pkl.dump((init_som, som, unit_labels, variance),
+             open(os.path.join(path, 'soms.pkl'), 'wb'))
     print('Program execution time =', str(timedelta(seconds=time.time() -
                                                             execution_st)))
     print()
