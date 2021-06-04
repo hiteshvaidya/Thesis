@@ -114,7 +114,7 @@ def plot_som(init_som, final_som, path):
     fig.colorbar(pos1, ax=ax[1])
     # plt.show()
 
-    plt.savefig('som_data/MNIST SOM confusion matrices.png')
+    plt.savefig(os.path.join(path, 'mnist_soms.png'))
 
     # plt.imshow(som, interpolation='nearest')
     # if post:
@@ -128,22 +128,23 @@ def plot_som(init_som, final_som, path):
 
 
 def main():
-    path = 'som_data/epochs-8_lr-0.1_soms/'
-    if not os.path.isdir(path):
-        os.mkdir(path)
-
     trainX, trainY = load_data()  # , testX, testY, validX, validY
 
     som_dimension = (20, 28 * 28)
-    n_epochs = 8
+    n_epochs = 10
     init_learning_rate = tf.convert_to_tensor(0.1, tf.float64)
+    path = 'som_data/epochs-' + str(n_epochs) + '_lr-' + str(
+        init_learning_rate) + '_soms/'
     n_classes = 10
-    init_radius = tf.convert_to_tensor(1.19, tf.float64)
-    tau1 = tf.cast(trainX.shape[0], tf.float64) / tf.math.log(
+    init_radius = tf.convert_to_tensor(1.2, tf.float64)
+    tau1 = tf.cast(trainX[:1000].shape[0], tf.float64) / tf.math.log(
         init_radius)
-    tau2 = tf.cast(trainX.shape[0], tf.float64)
+    tau2 = tf.cast(trainX[:1000].shape[0], tf.float64)
     unit_labels = []
     variance = []
+
+    if not os.path.isdir(path):
+        os.mkdir(path)
 
     # initial neighbourhood radius
     # init_radius = max(som_dimension[0], som_dimension[1]) / 2
@@ -154,7 +155,7 @@ def main():
     som = tf.random.normal(som_dimension, mean=0.0, stddev=0.1, seed=0.0,
                            dtype=tf.float64)
     init_som = tf.identity(som)
-    indices = tf.convert_to_tensor(np.arange(trainX.shape[0]))
+    indices = tf.convert_to_tensor(np.arange(trainX[:1000].shape[0]))
 
     execution_st = time.time()
     tqdm.write('Training on epochs...')
@@ -170,7 +171,7 @@ def main():
             for index in range(som_dimension[0]):
                 som_welford.append(Welford.Welford())
 
-        tqdm.write('Training indices for epoch ' + str(epoch))
+        tqdm.write('\nTraining indices for epoch ' + str(epoch))
         epoch_st = time.time()
         for iteration, index in tqdm(enumerate(indices)):
             data = trainX[index]
@@ -205,6 +206,7 @@ def main():
                 new_node = node + (lr * influence * difference)
                 if epoch == n_epochs - 1 and row == bmu_idx:
                     som_welford[bmu_idx].add(difference)
+
                 if row < som.shape[0] - 1:
                     som = tf.concat([som[:row], tf.reshape(new_node, (1, -1)),
                                      som[row + 1:]], axis=0)
@@ -239,8 +241,8 @@ def main():
 
         if epoch == n_epochs - 1:
             # Labels for each unit of SOM
-            for index in range(som.shape[0]):
-                max_count = 0
+            for index in range(som_dimension[0]):
+                max_count = -1
                 label = -1
                 for key, val in som_count[index].items():
                     if val >= max_count:
@@ -248,14 +250,16 @@ def main():
                         label = key
                 unit_labels.append(label)
 
+                print('running variance for index ', index, '=',
+                      som_welford[index].var_population())
                 variance.append(som_welford[index].var_population())
 
     pkl.dump((init_som, som, unit_labels, variance),
              open(os.path.join(path, 'soms.pkl'), 'wb'))
     print('Program execution time =', str(timedelta(seconds=time.time() -
                                                             execution_st)))
-    print()
-    plot_som(init_som, som, path)
+
+    # plot_som(init_som, som, path)
 
 
 if __name__ == '__main__':

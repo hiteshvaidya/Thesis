@@ -40,8 +40,9 @@ class Welford(object):
         else:
             self.shape = elements[0].shape
             self.count = elements.shape[0]
-            self.mean = tf.reduce_mean(elements, axis=0)
-            self.variance = tf.math.reduce_variance(elements, axis=0) * \
+            self.mean = tf.reduce_mean(elements, dtype=tf.float64, axis=0)
+            self.variance = tf.math.reduce_variance(elements,
+                                                    dtype=tf.float64, axis=0) * \
                             elements.shape[0]
             # previous attribute values for rollback
             self.old_count = None
@@ -85,8 +86,8 @@ class Welford(object):
         # Initialize if not yet
         if self.shape is None:
             self.shape = element.shape
-            self.mean = tf.zeros(element.shape)
-            self.variance = tf.zeros(element.shape)
+            self.mean = tf.zeros(element.shape, dtype=tf.float64)
+            self.variance = tf.zeros(element.shape, dtype=tf.float64)
             self.init_old_with_nan()
         # argument check if already initialized
         else:
