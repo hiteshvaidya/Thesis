@@ -16,7 +16,7 @@ def read_dataframe(filename):
     :return:            dataframe as numpy array
     """
     data = pd.read_csv(filename, sep='\t', header=None, index_col=False,
-                       dtype=np.float32).to_numpy()
+                       dtype=np.float64).to_numpy()
     return data
 
 
@@ -44,6 +44,46 @@ def relabel(labels):
     print('shape of new labels:', new_labels.shape)
     return new_labels
 
+
+def incremental_indices(labels, task_size=2, one_hot=True):
+    """
+    relabel dataset for SPLIT-MNIST
+    eg, for SPLIT-MNIST
+    0,1 -> [1,0], [0,1]
+    2,3 -> [1,0], [0,1]
+    ...
+    :param one_hot_input:   whether input labels are in one-hot format
+    :param task_size:       Size of a single task
+                            2 for SPLIT-MNIST
+    :param labels:          labels of the dataset
+    :return:                task wise one-hot relabeled dataset
+    """
+    if one_hot:
+        labels = tf.argmax(labels, axis=1)
+    indices = tf.TensorArray(int, size=0, dynamic_size=True,
+                             clear_after_read=False)
+    labels = tf.reshape(labels, -1)
+
+    for index, task in enumerate(range(0, 10, 2)):
+        # temp = tf.where(labels[:, task] == 1)[0]
+        temp = tf.where(
+            tf.logical_or(labels == task, labels == task + 1))
+        temp = tf.reshape(temp, -1, dtype=int)
+        # class_labels = tf.gather(labels, class_labels)
+        # class_labels = class_labels % 2
+        # class_labels = tf.one_hot(class_labels, 2, dtype=tf.float64)
+        indices = indices.write(index, temp)
+    return indices
+
+
+def incremental_relabeling(labels, task, size=2):
+    task *= size
+    Y = np.zeros((labels.shape[0], size))
+    for t in range(size):
+        rows = tf.where(labels[:, task+t] == 1)[0]
+        Y[rows, t] = 1
+    Y = tf.convert_to_tensor(Y, dtype=tf.float64)
+    return Y
 
 def standardize(data):
     """
@@ -107,7 +147,7 @@ def batch_loader(labels, batch_size, class_bal=False):
     if not class_bal:
         indices = np.arange(labels.shape[0])
         for _ in range(5): np.random.shuffle(indices)
-        batches = np.asarray(list(divide_chunks(indices, batch_size)))
+        batches = tf.convert_to_tensor(list(divide_chunks(indices, batch_size)))
         return batches
 
     # if class balance is needed in every batch
